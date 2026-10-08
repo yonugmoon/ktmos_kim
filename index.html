@@ -118,6 +118,7 @@ input[type=range]{width:100%;accent-color:var(--accent);margin-top:12px}
 .btn[disabled]{opacity:.4;cursor:not-allowed}
 .btn.ghost{background:transparent;color:var(--ink);flex:0 0 auto}
 .btn.small{padding:8px 13px;font-size:13px;font-weight:500;flex:0 0 auto}
+a.btn{display:block;text-decoration:none;text-align:center}
 
 /* ---------- result ---------- */
 .verdictwrap{display:grid;grid-template-columns:1fr 104px;gap:14px;align-items:center}
@@ -181,7 +182,7 @@ input[type=range]{width:100%;accent-color:var(--accent);margin-top:12px}
 pre{font-family:var(--mono);font-size:11.5px;background:var(--shade);padding:12px;border-radius:3px;overflow-x:auto;margin:0}
 
 @media print{
-  .top,.nav,.tabs,#leadform,.noprint,footer .noprint{display:none!important}
+  .top,.nav,.tabs,.noprint,footer .noprint{display:none!important}
   body{background:#fff;color:#000}
   .sheet{border:1px solid #999;break-inside:avoid}
 }
@@ -231,23 +232,6 @@ pre{font-family:var(--mono);font-size:11.5px;background:var(--shade);padding:12p
 
   <div id="result" class="hidden"></div>
 
-  <div class="sheet hidden" id="leadform">
-    <h2>상세 점검 계획서 받기</h2>
-    <p class="lede" style="margin-bottom:14px">진단 결과에 맞춘 연간 점검 일정표와 필요 서류 목록을 보내드립니다.</p>
-    <div class="field"><label for="lfName">담당자 성함</label><input id="lfName" autocomplete="name"></div>
-    <div class="field"><label for="lfOrg">건물명 / 기관명</label><input id="lfOrg" autocomplete="organization"></div>
-    <div class="field"><label for="lfEmail">이메일</label><input id="lfEmail" type="email" autocomplete="email"></div>
-    <div class="field"><label for="lfPhone">연락처</label><input id="lfPhone" type="tel" autocomplete="tel"></div>
-    <div class="field"><label for="lfSrc">어떻게 알고 오셨나요</label>
-      <select id="lfSrc">
-        <option value="">선택</option><option>네이버 검색</option><option>구글 검색</option>
-        <option>블로그 글</option><option>동료 공유</option><option>광고</option><option>기타</option>
-      </select></div>
-    <div class="nav"><button class="btn" id="lfSubmit">계획서 신청</button>
-      <button class="btn ghost" id="lfCancel">나중에</button></div>
-    <div id="lfMsg"></div>
-  </div>
-
 </section>
 
 <!-- ======================= 운영 면 ======================= -->
@@ -273,13 +257,11 @@ pre{font-family:var(--mono);font-size:11.5px;background:var(--shade);padding:12p
 "use strict";
 
 /* ===================================================================
-   0. 배포 설정 — 여기 네 줄만 고치면 됩니다
+   0. 배포 설정 — 여기 두 줄만 고치면 됩니다
    =================================================================== */
 const CONFIG = {
-  email:    "icfm@ktmos.com",          // 신청서를 받을 메일 주소. 예: "youngmoon@example.com"
-  formUrl:  "",                       // 구글폼/네이버폼 주소가 있으면 여기에. 비워두면 메일로 접수
-  blogUrl:  "https://blog.naver.com/ktmos_/224432888159",  // 블로그 글 주소. 공유 문구에 함께 붙습니다
-  ga4:      ""                        // GA4 측정 ID. 예: "G-XXXXXXXXXX". 비워두면 추적 안 함
+  ctaUrl:   "https://ktmos.com/etc/management",   // '상세 계획서 받기' 버튼이 열 주소
+  ga4:      ""                                    // GA4 측정 ID. 예: "G-XXXXXXXXXX". 비워두면 추적 안 함
 };
 
 if (CONFIG.ga4){
@@ -459,15 +441,6 @@ function diagnose(a){
   return out;
 }
 
-function leadScore(a, d){
-  let s=0;
-  const area=Number(a.area)||0;
-  s += area>=60000?30 : area>=30000?26 : area>=15000?21 : area>=10000?17 : area>=5000?12 : 4;
-  s += Math.min(40, d.gap*14 + d.check*7 + d.prep*3);
-  s += d.applies ? (d.inForce?20 : (d.dday<=365?15:5)) : 0;
-  return Math.min(100, s);
-}
-
 /* ================= 4. 상태 ================= */
 const S = { step:0, ans:{}, diag:null, utm:{}, mode:"public", tab:"funnel",
             db:null, user:null, sample:null, dl:null, canWrite:null, isOwner:false,
@@ -631,21 +604,19 @@ function renderResult(){
       ${items}
       <div class="agentbox" id="aiAdvice"></div>
       <div class="nav noprint">
-        <button class="btn" id="goLead">상세 계획서 받기</button>
+        <a class="btn" id="goLead" href="${esc(CONFIG.ctaUrl)}" target="_blank" rel="noopener">상세 계획서 받기</a>
         <button class="btn ghost small" id="aiBtn">AI 개선 권고</button>
       </div>
       <div class="nav noprint">
-        <button class="btn ghost small" id="shareBtn">공유</button>
         <button class="btn ghost small" id="saveBtn">저장</button>
         <button class="btn ghost small" id="printBtn">인쇄 / PDF</button>
         <button class="btn ghost small" id="againBtn">다시</button>
       </div>
     </div>`;
 
-  $("#goLead").addEventListener("click",()=>{ $("#leadform").classList.remove("hidden"); $("#leadform").scrollIntoView({behavior:"smooth"}); });
-  $("#againBtn").addEventListener("click",()=>{ S.step=0; S.ans={}; S.diag=null; $("#leadform").classList.add("hidden"); renderQuiz(); window.scrollTo({top:0}); });
+  $("#goLead").addEventListener("click",()=>track('cta_ktmos', {verdict:d.verdict, area:area, use:S.ans.use}));
+  $("#againBtn").addEventListener("click",()=>{ S.step=0; S.ans={}; S.diag=null; renderQuiz(); window.scrollTo({top:0}); });
   $("#printBtn").addEventListener("click",()=>window.print());
-  $("#shareBtn").addEventListener("click",shareResult);
   $("#saveBtn").addEventListener("click",saveResult);
   $("#aiBtn").addEventListener("click",aiAdvice);
   if(!S.sample) $("#aiBtn").classList.add("hidden");
@@ -676,17 +647,6 @@ function reportText(){
   L.push("본 결과는 참고용 계산이며 최종 판단은 관할 지자체 및 점검 수행기관 확인이 필요합니다.");
   L.push("Powered by SafeICT — kt MOS 북부 정보통신설비 유지보수·성능점검");
   return L.join("\n");
-}
-
-async function shareResult(){
-  track('share_result', {verdict:S.diag.verdict});
-  const txt = reportText();
-  const url = CONFIG.blogUrl || location.href.split("#")[0];
-  try{
-    if(navigator.share){ await navigator.share({title:"SafeICT 자가진단 결과", text:txt.slice(0,900), url}); return; }
-  }catch(e){ if(e && e.name==="AbortError") return; }
-  try{ await navigator.clipboard.writeText(txt+"\n"+url); toast("결과와 링크를 복사했습니다. 동료에게 붙여넣기 하세요."); }
-  catch(e){ toast("복사에 실패했습니다. 인쇄 버튼으로 PDF 저장을 이용하세요."); }
 }
 
 async function saveResult(){
@@ -735,40 +695,6 @@ async function recordDiagnosis(d){
       applies:d.applies, inForce:!!d.inForce, utm:S.utm, createdAt:new Date().toISOString()
     });
   }catch(e){ if(e&&e.code==="invalid_argument") S.canWrite=false; }
-}
-
-async function submitLead(){
-  const lead = {
-    name:$("#lfName").value.trim(), org:$("#lfOrg").value.trim(),
-    email:$("#lfEmail").value.trim(), phone:$("#lfPhone").value.trim(),
-    source:$("#lfSrc").value || (S.utm.utm_source||""),
-    use:S.ans.use, area:Number(S.ans.area)||0, year:Number(S.ans.year)||0,
-    verdict:S.diag.verdict, gap:S.diag.gap, check:S.diag.check, inForce:!!S.diag.inForce,
-    score:leadScore(S.ans,S.diag), status:"신규", memo:"",
-    utm:S.utm, createdAt:new Date().toISOString()
-  };
-  if(!lead.name || (!lead.email && !lead.phone)){
-    $("#lfMsg").innerHTML = `<div class="msg">성함과 이메일 또는 연락처 중 하나는 입력해 주세요.</div>`; return;
-  }
-  track('lead_submit', {verdict:lead.verdict, area:lead.area, source:lead.source});
-
-  if(CONFIG.formUrl){
-    const u = new URL(CONFIG.formUrl);
-    u.searchParams.set("건물명", lead.org); u.searchParams.set("성함", lead.name);
-    u.searchParams.set("연락처", lead.phone || lead.email); u.searchParams.set("판정", lead.verdict);
-    window.open(u.toString(), "_blank", "noopener");
-    $("#lfMsg").innerHTML = `<div class="msg">신청 양식을 새 창으로 열었습니다. 창이 뜨지 않았다면 팝업 차단을 해제해 주세요.</div>`;
-    return;
-  }
-
-  const body = encodeURIComponent(reportText()+`\n\n--- 신청자 ---\n${lead.name} / ${lead.org}\n${lead.email} ${lead.phone}\n유입: ${lead.source}`);
-  const subject = encodeURIComponent("[SafeICT] 점검 계획서 신청 — "+(lead.org||lead.name));
-  $("#lfMsg").innerHTML = `<div class="msg">아래 버튼을 누르면 메일 앱이 열리고, 진단 결과와 입력하신 정보가 본문에 담깁니다. 그대로 보내주시면 접수됩니다.
-    <div class="nav"><a class="btn" style="text-decoration:none;text-align:center" href="mailto:${encodeURIComponent(CONFIG.email)}?subject=${subject}&body=${body}">메일 앱으로 보내기</a>
-    <button class="btn ghost small" id="lfCopy">내용 복사</button></div></div>`;
-  const c=$("#lfCopy"); if(c) c.addEventListener("click",async()=>{
-    try{ await navigator.clipboard.writeText(decodeURIComponent(body)); toast("복사했습니다. 메일이나 메신저에 붙여넣기 하세요."); }catch(e){}
-  });
 }
 
 /* ================= 9. 운영 콘솔 ================= */
@@ -972,8 +898,6 @@ function opsTeam(){
 }
 
 /* ================= 10. 부팅 ================= */
-$("#lfSubmit").addEventListener("click",submitLead);
-$("#lfCancel").addEventListener("click",()=>$("#leadform").classList.add("hidden"));
 $("#opsToggle").addEventListener("click",()=>{
   S.mode = S.mode==="public" ? "ops" : "public";
   const ops = S.mode==="ops";
